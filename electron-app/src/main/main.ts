@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
+import { registerIpcHandlers } from './ipc-handlers';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -19,16 +20,10 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  ipcMain.handle('copy-to-clipboard', () => {
-    mainWindow?.webContents.send('trigger-copy');
-  });
-  ipcMain.handle('save-to-file', () => {
-    mainWindow?.webContents.send('trigger-save');
-  });
-
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+registerIpcHandlers();
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (mainWindow === null) createWindow(); });
