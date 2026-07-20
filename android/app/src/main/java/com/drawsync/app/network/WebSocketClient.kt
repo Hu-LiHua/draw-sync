@@ -55,12 +55,14 @@ class WebSocketClient(
 
     // --- 发送消息 ---
 
-    fun sendStrokeStart(stroke: Stroke) {
+    fun sendStrokeStart(stroke: Stroke, vw: Int, vh: Int) {
         val json = JSONObject().apply {
             put("type", "stroke_start")
             put("id", stroke.id)
             put("color", String.format("#%06X", 0xFFFFFF and stroke.color))
             put("width", stroke.width.toDouble())
+            put("vw", vw)
+            put("vh", vh)
         }
         webSocket?.send(json.toString())
     }

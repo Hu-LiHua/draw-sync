@@ -4,3 +4,6 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+android/app/build/
+android/.gradle/
+electron-app/package-lock.json

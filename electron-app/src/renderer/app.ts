@@ -34,14 +34,26 @@ function updateConnectionStatus(connected: boolean) {
   }
 }
 
+// --- 坐标缩放（Android 像素 → PC 画布） ---
+let androidVw = 2560;
+let androidVh = 1600;
+
+function scalePoints(points: { x: number; y: number; pressure?: number }[]): { x: number; y: number; pressure?: number }[] {
+  const sx = renderer.getWidth() / androidVw;
+  const sy = renderer.getHeight() / androidVh;
+  return points.map(p => ({ x: p.x * sx, y: p.y * sy, pressure: p.pressure }));
+}
+
 // --- 消息处理 ---
 function handleMessage(msg: WsMessage) {
   switch (msg.type) {
     case 'stroke_start':
+      androidVw = msg.vw || androidVw;
+      androidVh = msg.vh || androidVh;
       drawingState.startStroke(msg.id, msg.color, msg.width, msg.pressure);
       break;
     case 'stroke_points':
-      drawingState.addPoints(msg.id, msg.points);
+      drawingState.addPoints(msg.id, scalePoints(msg.points));
       break;
     case 'stroke_end':
       drawingState.endStroke(msg.id);
@@ -49,12 +61,17 @@ function handleMessage(msg: WsMessage) {
     case 'eraser_stroke':
       drawingState.removeStroke(msg.targetId);
       break;
-    case 'eraser_region_start':
-      regionStart = msg.start;
+    case 'eraser_region_start': {
+      const sx = renderer.getWidth() / androidVw;
+      const sy = renderer.getHeight() / androidVh;
+      regionStart = { x: msg.start.x * sx, y: msg.start.y * sy };
       break;
+    }
     case 'eraser_region_end':
       if (regionStart) {
-        drawingState.eraseRegion(regionStart, msg.end);
+        const sx = renderer.getWidth() / androidVw;
+        const sy = renderer.getHeight() / androidVh;
+        drawingState.eraseRegion(regionStart, { x: msg.end.x * sx, y: msg.end.y * sy });
         regionStart = null;
       }
       break;

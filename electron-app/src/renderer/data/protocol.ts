@@ -15,7 +15,7 @@ export interface StrokeData {
 }
 
 export type WsMessage =
-  | { type: 'stroke_start'; id: string; color: string; width: number; pressure?: number }
+  | { type: 'stroke_start'; id: string; color: string; width: number; pressure?: number; vw: number; vh: number }
   | { type: 'stroke_points'; id: string; points: Point[] }
   | { type: 'stroke_end'; id: string }
   | { type: 'eraser_stroke'; targetId: string }

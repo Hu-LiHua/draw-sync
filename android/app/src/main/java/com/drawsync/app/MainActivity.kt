@@ -156,7 +156,7 @@ class MainActivity : AppCompatActivity() {
 
         // 设置 DrawView 回调
         drawView.onStrokeStart = { stroke ->
-            webSocket?.sendStrokeStart(stroke)
+            webSocket?.sendStrokeStart(stroke, drawView.width, drawView.height)
         }
         drawView.onStrokePoints = { id, points ->
             webSocket?.sendStrokePoints(id, points)
