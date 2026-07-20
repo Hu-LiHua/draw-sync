@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { registerIpcHandlers } from './ipc-handlers';
+import { DrawSyncServer } from './WebSocketServer';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -20,7 +21,22 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  // 启动 WebSocket 服务端
+  const server = new DrawSyncServer(
+    (msg) => {
+      // 收到 Android 消息，转发到渲染进程
+      mainWindow?.webContents.send('drawing-message', msg);
+    },
+    (connected) => {
+      mainWindow?.webContents.send('connection-status', connected);
+    }
+  );
+  server.start(8080);
+
+  mainWindow.on('closed', () => {
+    server.stop();
+    mainWindow = null;
+  });
 }
 
 registerIpcHandlers();

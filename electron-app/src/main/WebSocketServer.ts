@@ -1,5 +1,5 @@
 import { WebSocketServer as WsServer, WebSocket } from 'ws';
-import { WsMessage } from '../data/protocol';
+import { WsMessage } from '../renderer/data/protocol';
 
 type MessageHandler = (msg: WsMessage) => void;
 type ConnectionHandler = (connected: boolean) => void;

@@ -1,4 +1,4 @@
-import { StrokeData, Point, ToolMode } from '../data/protocol';
+import { StrokeData } from '../data/protocol';
 
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;
@@ -50,62 +50,12 @@ export class CanvasRenderer {
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
 
-    // 第一个点作为 moveTo
     this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
-    // 中间点用 lineTo
     for (let i = 1; i < stroke.points.length; i++) {
       this.ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
     }
 
     this.ctx.stroke();
-  }
-
-  /** 导出内容区域为 PNG Buffer（裁剪到笔画边界） */
-  exportContentClip(strokes: StrokeData[], bbox: { x: number; y: number; width: number; height: number } | null): Uint8Array | null {
-    if (!bbox) return null;
-
-    const w = this.canvas.getBoundingClientRect().width;
-    const h = this.canvas.getBoundingClientRect().height;
-
-    // 创建离屏 Canvas
-    const offscreen = document.createElement('canvas');
-    offscreen.width = bbox.width * this.dpr;
-    offscreen.height = bbox.height * this.dpr;
-    const offCtx = offscreen.getContext('2d')!;
-
-    // 白色背景
-    offCtx.fillStyle = '#ffffff';
-    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
-    offCtx.scale(this.dpr, this.dpr);
-    offCtx.translate(-bbox.x, -bbox.y);
-
-    // 绘制笔画
-    for (const stroke of strokes) {
-      this.drawStrokeOnCtx(offCtx, stroke);
-    }
-
-    const blob = offscreen.toBlob((blob) => {
-      if (blob) {
-        blob.arrayBuffer().then(buf => {
-          window.electronAPI?.copyToClipboard(buf);
-        });
-      }
-    }, 'image/png');
-    return null; // 实际通过 IPC 完成
-  }
-
-  private drawStrokeOnCtx(ctx: CanvasRenderingContext2D, stroke: StrokeData): void {
-    if (stroke.points.length < 1) return;
-    ctx.beginPath();
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-    }
-    ctx.stroke();
   }
 }

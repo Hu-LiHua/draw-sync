@@ -1,6 +1,5 @@
 import { DrawingState } from './data/DrawingState';
 import { CanvasRenderer } from './components/CanvasRenderer';
-import { DrawSyncServer } from './network/WebSocketServer';
 import { WsMessage, ToolMode } from './data/protocol';
 
 // --- 全局状态 ---
@@ -20,13 +19,7 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// --- 初始化 WebSocket 服务端 ---
-const server = new DrawSyncServer(
-  (msg: WsMessage) => handleMessage(msg),
-  (connected: boolean) => updateConnectionStatus(connected)
-);
-server.start(8080);
-
+// --- 通过预加载桥接收主进程的 WebSocket 消息 ---
 function updateConnectionStatus(connected: boolean) {
   const el = document.getElementById('connection-status')!;
   const ipEl = document.getElementById('connection-ip')!;
@@ -40,6 +33,9 @@ function updateConnectionStatus(connected: boolean) {
     ipEl.textContent = '端口 8080 等待连接...';
   }
 }
+
+window.electronAPI.onConnectionStatus(updateConnectionStatus);
+window.electronAPI.onDrawingMessage(handleMessage);
 
 // --- 消息处理 ---
 function handleMessage(msg: WsMessage) {
@@ -147,7 +143,6 @@ document.getElementById('btn-copy')!.addEventListener('click', () => {
     if (!blob) return;
     const reader = new FileReader();
     reader.onload = () => {
-      // 通过 preload 调用主进程复制到剪贴板
       window.electronAPI.copyToClipboard(reader.result as ArrayBuffer);
     };
     reader.readAsArrayBuffer(blob);
@@ -163,6 +158,8 @@ declare global {
     electronAPI: {
       copyToClipboard: (data: ArrayBuffer) => void;
       saveToFile: () => void;
+      onDrawingMessage: (callback: (msg: WsMessage) => void) => void;
+      onConnectionStatus: (callback: (connected: boolean) => void) => void;
     };
   }
 }
