@@ -4,9 +4,9 @@
   "description": "Android 平板绘图实时同步到 Windows",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "node scripts/dev.js",
-    "build": "tsc && electron-builder",
-    "start": "electron ."
+    "postcompile": "cp -r src/renderer/*.html src/renderer/*.css dist/renderer/ 2>/dev/null; exit 0",
+    "build": "tsc && npm run postcompile && electron-builder",
+    "start": "tsc && npm run postcompile && electron ."
   },
   "dependencies": {
     "ws": "^8.18.0"
