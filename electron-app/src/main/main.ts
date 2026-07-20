@@ -24,11 +24,14 @@ function createWindow() {
   // 启动 WebSocket 服务端
   const server = new DrawSyncServer(
     (msg) => {
-      // 收到 Android 消息，转发到渲染进程
-      mainWindow?.webContents.send('drawing-message', msg);
+      if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('drawing-message', msg);
+      }
     },
     (connected) => {
-      mainWindow?.webContents.send('connection-status', connected);
+      if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send('connection-status', connected);
+      }
     }
   );
   server.start(8080);

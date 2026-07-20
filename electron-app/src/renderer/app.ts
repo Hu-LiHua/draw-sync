@@ -19,7 +19,7 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// --- 通过预加载桥接收主进程的 WebSocket 消息 ---
+// --- 连接状态 UI ---
 function updateConnectionStatus(connected: boolean) {
   const el = document.getElementById('connection-status')!;
   const ipEl = document.getElementById('connection-ip')!;
@@ -33,9 +33,6 @@ function updateConnectionStatus(connected: boolean) {
     ipEl.textContent = '端口 8080 等待连接...';
   }
 }
-
-window.electronAPI.onConnectionStatus(updateConnectionStatus);
-window.electronAPI.onDrawingMessage(handleMessage);
 
 // --- 消息处理 ---
 function handleMessage(msg: WsMessage) {
@@ -68,10 +65,27 @@ function handleMessage(msg: WsMessage) {
       drawingState.undo();
       break;
     case 'set_pen':
-      break; // Android 发来的画笔设置仅通知
+      break;
   }
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
 }
+
+// --- 轮询：从 preload 缓存中拉取消息和连接状态 ---
+setInterval(() => {
+  // 更新连接状态
+  const connected = window.electronAPI.getConnectionStatus();
+  const statusEl = document.getElementById('connection-status')!;
+  const currentIsConnected = statusEl.className === 'connected';
+  if (connected !== currentIsConnected) {
+    updateConnectionStatus(connected);
+  }
+
+  // 批量处理收到的消息
+  const msgs = window.electronAPI.getDrawingMessages();
+  for (const msg of msgs) {
+    handleMessage(msg);
+  }
+}, 30); // 30ms ≈ 33fps 轮询
 
 // --- UI 交互 ---
 // 颜色选择
@@ -111,7 +125,7 @@ document.getElementById('btn-clear')!.addEventListener('click', () => {
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
 });
 
-// 复制/保存
+// 复制
 document.getElementById('btn-copy')!.addEventListener('click', () => {
   const bbox = drawingState.getBoundingBox(20);
   if (!bbox) return;
@@ -158,8 +172,8 @@ declare global {
     electronAPI: {
       copyToClipboard: (data: ArrayBuffer) => void;
       saveToFile: () => void;
-      onDrawingMessage: (callback: (msg: WsMessage) => void) => void;
-      onConnectionStatus: (callback: (connected: boolean) => void) => void;
+      getConnectionStatus: () => boolean;
+      getDrawingMessages: () => any[];
     };
   }
 }
