@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DrawSync</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="top-bar">
+      <span id="connection-status" class="disconnected">● 未连接</span>
+      <span id="connection-ip">端口 8080 等待连接...</span>
+      <div id="top-actions">
+        <button id="btn-copy">📋 复制</button>
+        <button id="btn-save">💾 保存</button>
+      </div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div id="toolbar">
+      <div id="color-picker">
+        <button class="color-btn active" data-color="#000000" style="background:#000000"></button>
+        <button class="color-btn" data-color="#FF0000" style="background:#FF0000"></button>
+        <button class="color-btn" data-color="#0000FF" style="background:#0000FF"></button>
+        <button class="color-btn" data-color="#00AA00" style="background:#00AA00"></button>
+        <button class="color-btn" data-color="#FF8800" style="background:#FF8800"></button>
+        <button class="color-btn" data-color="#8800FF" style="background:#8800FF"></button>
+      </div>
+      <div id="width-control">
+        <label>粗细</label>
+        <input type="range" id="width-slider" min="1" max="20" value="3" />
+      </div>
+      <div id="mode-buttons">
+        <button id="mode-pen" class="mode-btn active">✏️ 画笔</button>
+        <button id="mode-eraser-stroke" class="mode-btn">🖊️ 擦笔画</button>
+        <button id="mode-eraser-region" class="mode-btn">📐 擦区域</button>
+        <button id="btn-undo" class="action-btn">↩ 撤销</button>
+        <button id="btn-clear" class="action-btn danger">🗑 清空</button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

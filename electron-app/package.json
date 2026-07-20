@@ -1,0 +1,22 @@
+{
+  "name": "draw-sync",
+  "version": "1.0.0",
+  "description": "Android 平板绘图实时同步到 Windows",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "tsc && electron-builder",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.6.0",
+    "@types/ws": "^8.5.0",
+    "concurrently": "^9.0.0",
+    "chokidar": "^4.0.0"
+  }
+}
