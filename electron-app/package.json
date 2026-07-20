@@ -4,7 +4,7 @@
   "description": "Android 平板绘图实时同步到 Windows",
   "main": "dist/main/main.js",
   "scripts": {
-    "postcompile": "cp -r src/renderer/*.html src/renderer/*.css dist/renderer/ 2>/dev/null; exit 0",
+    "postcompile": "node -e \"require('fs').cpSync('src/renderer/index.html','dist/renderer/index.html');require('fs').cpSync('src/renderer/styles.css','dist/renderer/styles.css')\"",
     "build": "tsc && npm run postcompile && electron-builder",
     "start": "tsc && npm run postcompile && electron ."
   },

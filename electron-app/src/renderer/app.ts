@@ -70,22 +70,14 @@ function handleMessage(msg: WsMessage) {
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
 }
 
-// --- 轮询：从 preload 缓存中拉取消息和连接状态 ---
-setInterval(() => {
-  // 更新连接状态
-  const connected = window.electronAPI.getConnectionStatus();
-  const statusEl = document.getElementById('connection-status')!;
-  const currentIsConnected = statusEl.className === 'connected';
-  if (connected !== currentIsConnected) {
-    updateConnectionStatus(connected);
-  }
+// --- 通过 IPC 回调接收主进程 WebSocket 消息和连接状态 ---
+window.electronAPI.onConnectionStatus((connected: boolean) => {
+  updateConnectionStatus(connected);
+});
 
-  // 批量处理收到的消息
-  const msgs = window.electronAPI.getDrawingMessages();
-  for (const msg of msgs) {
-    handleMessage(msg);
-  }
-}, 30); // 30ms ≈ 33fps 轮询
+window.electronAPI.onDrawingMessage((msg: WsMessage) => {
+  handleMessage(msg);
+});
 
 // --- UI 交互 ---
 // 颜色选择
@@ -172,8 +164,8 @@ declare global {
     electronAPI: {
       copyToClipboard: (data: ArrayBuffer) => void;
       saveToFile: () => void;
-      getConnectionStatus: () => boolean;
-      getDrawingMessages: () => any[];
+      onDrawingMessage: (callback: (msg: any) => void) => void;
+      onConnectionStatus: (callback: (connected: boolean) => void) => void;
     };
   }
 }
