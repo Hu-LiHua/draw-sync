@@ -1,4 +1,4 @@
-import { StrokeData } from '../data/protocol';
+import { StrokeData } from '../data/protocol.js';
 
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;

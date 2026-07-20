@@ -1,6 +1,6 @@
-import { DrawingState } from './data/DrawingState';
-import { CanvasRenderer } from './components/CanvasRenderer';
-import { WsMessage, ToolMode } from './data/protocol';
+import { DrawingState } from './data/DrawingState.js';
+import { CanvasRenderer } from './components/CanvasRenderer.js';
+import { WsMessage, ToolMode } from './data/protocol.js';
 
 // --- 全局状态 ---
 const drawingState = new DrawingState();

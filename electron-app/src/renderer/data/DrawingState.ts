@@ -1,4 +1,4 @@
-import { StrokeData, Point } from './protocol';
+import { StrokeData, Point } from './protocol.js';
 
 export class DrawingState {
   strokes: StrokeData[] = [];

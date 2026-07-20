@@ -5,8 +5,8 @@
   "main": "dist/main/main.js",
   "scripts": {
     "postcompile": "node -e \"require('fs').cpSync('src/renderer/index.html','dist/renderer/index.html');require('fs').cpSync('src/renderer/styles.css','dist/renderer/styles.css')\"",
-    "build": "tsc && npm run postcompile && electron-builder",
-    "start": "tsc && npm run postcompile && electron ."
+    "build": "tsc && tsc -p tsconfig.renderer.json && npm run postcompile && electron-builder",
+    "start": "tsc && tsc -p tsconfig.renderer.json && npm run postcompile && electron ."
   },
   "dependencies": {
     "ws": "^8.18.0"
