@@ -83,13 +83,13 @@ document.querySelectorAll('.color-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    currentColor = (btn as HTMLElement).dataset.color!;
+    currentColor = (btn as HTMLElement).dataset.color || '#000000';
   });
 });
 
 // 粗细调整
 const widthSlider = document.getElementById('width-slider') as HTMLInputElement;
-widthSlider.addEventListener('input', () => { currentWidth = parseInt(widthSlider.value); });
+widthSlider.addEventListener('input', () => { currentWidth = parseInt(widthSlider.value, 10); });
 
 // 模式切换
 document.getElementById('mode-pen')!.addEventListener('click', () => setToolMode('pen'));
@@ -148,7 +148,7 @@ document.getElementById('btn-copy')!.addEventListener('click', () => {
     const reader = new FileReader();
     reader.onload = () => {
       // 通过 preload 调用主进程复制到剪贴板
-      (window as any).electronAPI.copyToClipboard(reader.result);
+      window.electronAPI.copyToClipboard(reader.result as ArrayBuffer);
     };
     reader.readAsArrayBuffer(blob);
   }, 'image/png');
