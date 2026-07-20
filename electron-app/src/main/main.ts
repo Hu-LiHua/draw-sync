@@ -18,6 +18,14 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+
+  ipcMain.handle('copy-to-clipboard', () => {
+    mainWindow?.webContents.send('trigger-copy');
+  });
+  ipcMain.handle('save-to-file', () => {
+    mainWindow?.webContents.send('trigger-save');
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
