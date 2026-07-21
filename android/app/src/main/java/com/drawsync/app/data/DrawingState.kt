@@ -4,10 +4,24 @@ import android.graphics.RectF
 import java.util.Stack
 
 class DrawingState {
-    val strokes = mutableListOf<Stroke>()
+    /** 所有页面，每页是一组笔触 */
+    private val pages = mutableListOf(mutableListOf<Stroke>())
+    private var currentPageIdx = 0
     private var currentStroke: Stroke? = null
-    private val undoStack = Stack<List<Stroke>>()
+    /** 每页独立的撤销栈 */
+    private val undoTimelines = mutableListOf(Stack<List<Stroke>>())
     private val historyLimit = 50
+
+    /** 当前页的笔触列表 */
+    val strokes: MutableList<Stroke>
+        get() = pages[currentPageIdx]
+
+    val pageCount: Int get() = pages.size
+    val currentPage: Int get() = currentPageIdx
+
+    /** 当前页的撤销栈 */
+    private val undoStack: Stack<List<Stroke>>
+        get() = undoTimelines[currentPageIdx]
 
     fun getCurrentStroke(): Stroke? = currentStroke
 
@@ -71,7 +85,32 @@ class DrawingState {
         return true
     }
 
-    /** 计算笔画边界框 */
+    // --- 翻页 ---
+
+    fun newPage() {
+        pages.add(currentPageIdx + 1, mutableListOf())
+        undoTimelines.add(currentPageIdx + 1, Stack())
+        currentPageIdx++
+        currentStroke = null
+    }
+
+    fun goToPage(idx: Int): Boolean {
+        if (idx < 0 || idx >= pages.size) return false
+        currentPageIdx = idx
+        currentStroke = null
+        return true
+    }
+
+    fun deleteCurrentPage(): Boolean {
+        if (pages.size <= 1) return false
+        pages.removeAt(currentPageIdx)
+        undoTimelines.removeAt(currentPageIdx)
+        if (currentPageIdx >= pages.size) currentPageIdx = pages.size - 1
+        currentStroke = null
+        return true
+    }
+
+    /** 计算当前页笔画边界框 */
     fun getBoundingBox(padding: Int = 20): RectF? {
         if (strokes.all { it.points.isEmpty() }) return null
         var minX = Float.MAX_VALUE; var minY = Float.MAX_VALUE

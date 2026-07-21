@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 class WebSocketClient(
     private val onConnected: () -> Unit,
     private val onDisconnected: () -> Unit,
-    private val onError: (String) -> Unit
+    private val onError: (String) -> Unit,
+    private val onPageCommand: ((type: String, pageIdx: Int?) -> Unit)? = null
 ) {
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient.Builder()
@@ -41,7 +42,18 @@ class WebSocketClient(
             }
 
             override fun onMessage(ws: WebSocket, text: String) {
-                // Android 端目前不接收消息（将来可以扩展双向同步）
+                // 处理 PC 端发来的翻页同步消息
+                try {
+                    val json = JSONObject(text)
+                    when (json.optString("type")) {
+                        "page_new" -> mainHandler.post { onPageCommand?.invoke("page_new", null) }
+                        "page_go" -> {
+                            val idx = json.optInt("pageIdx", -1)
+                            if (idx >= 0) mainHandler.post { onPageCommand?.invoke("page_go", idx) }
+                        }
+                        "page_delete" -> mainHandler.post { onPageCommand?.invoke("page_delete", null) }
+                    }
+                } catch (_: Exception) { }
             }
         })
     }
@@ -142,5 +154,21 @@ class WebSocketClient(
             put("width", width.toDouble())
         }
         webSocket?.send(json.toString())
+    }
+
+    fun sendPageNew() {
+        webSocket?.send(JSONObject().apply { put("type", "page_new") }.toString())
+    }
+
+    fun sendPageGo(pageIdx: Int) {
+        val json = JSONObject().apply {
+            put("type", "page_go")
+            put("pageIdx", pageIdx)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendPageDelete() {
+        webSocket?.send(JSONObject().apply { put("type", "page_delete") }.toString())
     }
 }

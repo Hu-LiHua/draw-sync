@@ -4,9 +4,7 @@ import { WsMessage, ToolMode } from './data/protocol.js';
 
 // --- 全局状态 ---
 const drawingState = new DrawingState();
-let toolMode: ToolMode = 'pen';
-let currentColor = '#000000';
-let currentWidth = 3;
+let toolMode: ToolMode = 'eraser-stroke';
 let regionStart: { x: number; y: number } | null = null;
 
 // --- 初始化 Canvas ---
@@ -83,6 +81,18 @@ function handleMessage(msg: WsMessage) {
       break;
     case 'set_pen':
       break;
+    case 'page_new':
+      drawingState.newPage();
+      updatePageIndicator();
+      break;
+    case 'page_go':
+      drawingState.goToPage(msg.pageIdx);
+      updatePageIndicator();
+      break;
+    case 'page_delete':
+      drawingState.deleteCurrentPage();
+      updatePageIndicator();
+      break;
   }
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
 }
@@ -96,35 +106,18 @@ window.electronAPI.onDrawingMessage((msg: WsMessage) => {
   handleMessage(msg);
 });
 
-// --- UI 交互 ---
-// 颜色选择
-document.querySelectorAll('.color-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentColor = (btn as HTMLElement).dataset.color || '#000000';
-  });
-});
-
-// 粗细调整
-const widthSlider = document.getElementById('width-slider') as HTMLInputElement;
-widthSlider.addEventListener('input', () => { currentWidth = parseInt(widthSlider.value, 10); });
-
-// 模式切换
-document.getElementById('mode-pen')!.addEventListener('click', () => setToolMode('pen'));
+// --- 模式切换 ---
 document.getElementById('mode-eraser-stroke')!.addEventListener('click', () => setToolMode('eraser-stroke'));
 document.getElementById('mode-eraser-region')!.addEventListener('click', () => setToolMode('eraser-region'));
 
 function setToolMode(mode: ToolMode) {
   toolMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  if (mode === 'pen') document.getElementById('mode-pen')!.classList.add('active');
-  else if (mode === 'eraser-stroke') document.getElementById('mode-eraser-stroke')!.classList.add('active');
-  else document.getElementById('mode-eraser-region')!.classList.add('active');
-  canvas.style.cursor = mode === 'pen' ? 'crosshair' : 'pointer';
+  const id = mode === 'eraser-stroke' ? 'mode-eraser-stroke' : 'mode-eraser-region';
+  document.getElementById(id)!.classList.add('active');
 }
 
-// 撤销/清空
+// --- 撤销 / 清空 ---
 document.getElementById('btn-undo')!.addEventListener('click', () => {
   drawingState.undo();
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
@@ -134,7 +127,50 @@ document.getElementById('btn-clear')!.addEventListener('click', () => {
   renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
 });
 
-// 复制
+// --- 翻页 ---
+function updatePageIndicator() {
+  const idx = drawingState.getCurrentPageIdx();
+  const total = drawingState.getPageCount();
+  document.getElementById('page-indicator')!.textContent = `${idx + 1} / ${total}`;
+  // 更新按钮禁用状态
+  (document.getElementById('btn-page-prev') as HTMLButtonElement).disabled = idx === 0;
+  (document.getElementById('btn-page-next') as HTMLButtonElement).disabled = idx === total - 1;
+}
+
+document.getElementById('btn-page-prev')!.addEventListener('click', () => {
+  const newIdx = drawingState.getCurrentPageIdx() - 1;
+  if (drawingState.goToPage(newIdx)) {
+    window.electronAPI.sendToClient({ type: 'page_go', pageIdx: newIdx });
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    updatePageIndicator();
+  }
+});
+
+document.getElementById('btn-page-next')!.addEventListener('click', () => {
+  const newIdx = drawingState.getCurrentPageIdx() + 1;
+  if (drawingState.goToPage(newIdx)) {
+    window.electronAPI.sendToClient({ type: 'page_go', pageIdx: newIdx });
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    updatePageIndicator();
+  }
+});
+
+document.getElementById('btn-page-new')!.addEventListener('click', () => {
+  drawingState.newPage();
+  window.electronAPI.sendToClient({ type: 'page_new' });
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  updatePageIndicator();
+});
+
+document.getElementById('btn-page-delete')!.addEventListener('click', () => {
+  if (drawingState.deleteCurrentPage()) {
+    window.electronAPI.sendToClient({ type: 'page_delete' });
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    updatePageIndicator();
+  }
+});
+
+// --- 复制 ---
 document.getElementById('btn-copy')!.addEventListener('click', () => {
   const bbox = drawingState.getBoundingBox(20);
   if (!bbox) return;
@@ -172,8 +208,9 @@ document.getElementById('btn-copy')!.addEventListener('click', () => {
   }, 'image/png');
 });
 
-// 初始渲染
+// --- 初始渲染 ---
 resizeCanvas();
+updatePageIndicator();
 
 // --- 类型声明 ---
 declare global {
@@ -181,6 +218,7 @@ declare global {
     electronAPI: {
       copyToClipboard: (data: ArrayBuffer) => void;
       saveToFile: () => void;
+      sendToClient: (msg: any) => void;
       onDrawingMessage: (callback: (msg: any) => void) => void;
       onConnectionStatus: (callback: (connected: boolean) => void) => void;
     };

@@ -49,5 +49,12 @@ export class DrawSyncServer {
     this.onConnectionChange(false);
   }
 
+  /** 向已连接的 Android 客户端发送消息 */
+  send(msg: WsMessage): void {
+    if (this.client && this.client.readyState === WebSocket.OPEN) {
+      this.client.send(JSON.stringify(msg));
+    }
+  }
+
   getPort(): number { return this.wss?.options?.port ?? 8080; }
 }

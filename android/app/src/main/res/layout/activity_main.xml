@@ -37,6 +37,70 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    <!-- 翻页条 -->
+    <LinearLayout
+        android:id="@+id/pageBar"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:background="#FAFAFA"
+        android:paddingHorizontal="12dp">
+
+        <Button
+            android:id="@+id/btnPagePrev"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="← 上一页"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+
+        <TextView
+            android:id="@+id/pageIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1 / 1"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginHorizontal="12dp" />
+
+        <Button
+            android:id="@+id/btnPageNext"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="下一页 →"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+
+        <Button
+            android:id="@+id/btnPageNew"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="＋ 新建"
+            android:textSize="13sp"
+            android:textColor="#1976D2"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp"
+            android:layout_marginLeft="8dp" />
+
+        <Button
+            android:id="@+id/btnPageDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="删除本页"
+            android:textSize="13sp"
+            android:textColor="#D32F2F"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+    </LinearLayout>
+
     <!-- 绘图区域 -->
     <com.drawsync.app.ui.DrawView
         android:id="@+id/drawView"
@@ -47,6 +111,7 @@
 
     <!-- 底部工具栏 -->
     <LinearLayout
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:orientation="horizontal"
@@ -119,6 +184,16 @@
             android:layout_width="wrap_content"
             android:layout_height="40dp"
             android:text="🗑"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
+
+        <Button
+            android:id="@+id/btnFocus"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="⛶"
+            android:textSize="16sp"
             android:background="?android:attr/selectableItemBackground" />
     </LinearLayout>
 </LinearLayout>

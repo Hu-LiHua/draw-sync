@@ -23,6 +23,9 @@ export type WsMessage =
   | { type: 'eraser_region_end'; start: Point; end: Point }
   | { type: 'clear' }
   | { type: 'undo' }
-  | { type: 'set_pen'; color: string; width: number };
+  | { type: 'set_pen'; color: string; width: number }
+  | { type: 'page_new' }
+  | { type: 'page_go'; pageIdx: number }
+  | { type: 'page_delete' };
 
-export type ToolMode = 'pen' | 'eraser-stroke' | 'eraser-region';
+export type ToolMode = 'eraser-stroke' | 'eraser-region';

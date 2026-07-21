@@ -36,13 +36,15 @@ function createWindow() {
   );
   server.start(8080);
 
+  // 注册 IPC 处理（需要 server 引用以便回发消息给客户端）
+  registerIpcHandlers(server);
+
   mainWindow.on('closed', () => {
     server.stop();
     mainWindow = null;
   });
 }
 
-registerIpcHandlers();
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (mainWindow === null) createWindow(); });

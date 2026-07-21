@@ -1,13 +1,31 @@
 import { StrokeData, Point } from './protocol.js';
 
 export class DrawingState {
-  strokes: StrokeData[] = [];
+  /** 所有页面，每页是一组笔画 */
+  private pages: StrokeData[][] = [[]];
+  private currentPageIdx = 0;
   private currentStroke: StrokeData | null = null;
-  private undoStack: StrokeData[][] = [];
+  /** 每页独立的撤销栈 */
+  private undoTimelines: Array<StrokeData[][]> = [[]];
   private historyLimit = 50;
+
+  // --- 便捷 getter/setter，透明重定向到当前页 ---
+  private get strokes(): StrokeData[] {
+    return this.pages[this.currentPageIdx];
+  }
+  private set strokes(val: StrokeData[]) {
+    this.pages[this.currentPageIdx] = val;
+  }
+  private get undoStack(): StrokeData[][] {
+    return this.undoTimelines[this.currentPageIdx];
+  }
 
   getCurrentStroke(): StrokeData | null { return this.currentStroke; }
   getAllStrokes(): StrokeData[] { return this.strokes; }
+  getPageCount(): number { return this.pages.length; }
+  getCurrentPageIdx(): number { return this.currentPageIdx; }
+
+  // --- 笔画操作（与原来一致，通过 getter 操作当前页） ---
 
   startStroke(id: string, color: string, width: number, pressure?: number): StrokeData {
     this.currentStroke = { id, color, width, points: [], pressure };
@@ -51,7 +69,6 @@ export class DrawingState {
         changed = true;
       }
     }
-    // 移除空笔触
     this.strokes = this.strokes.filter(s => s.points.length > 0);
     return changed;
   }
@@ -69,7 +86,39 @@ export class DrawingState {
     return true;
   }
 
-  /** 计算所有笔画的内容边界框（用于剪贴板裁剪） */
+  // --- 翻页操作 ---
+
+  /** 新建空白页（插入到当前页之后并跳转） */
+  newPage(): void {
+    this.pages.splice(this.currentPageIdx + 1, 0, []);
+    this.undoTimelines.splice(this.currentPageIdx + 1, 0, []);
+    this.currentPageIdx++;
+    this.currentStroke = null;
+  }
+
+  /** 跳转到指定页 */
+  goToPage(idx: number): boolean {
+    if (idx < 0 || idx >= this.pages.length) return false;
+    this.currentPageIdx = idx;
+    this.currentStroke = null;
+    return true;
+  }
+
+  /** 删除当前页，至少保留一页 */
+  deleteCurrentPage(): boolean {
+    if (this.pages.length <= 1) return false;
+    this.pages.splice(this.currentPageIdx, 1);
+    this.undoTimelines.splice(this.currentPageIdx, 1);
+    if (this.currentPageIdx >= this.pages.length) {
+      this.currentPageIdx = this.pages.length - 1;
+    }
+    this.currentStroke = null;
+    return true;
+  }
+
+  // --- 辅助 ---
+
+  /** 计算当前页所有笔画的内容边界框 */
   getBoundingBox(padding = 20): { x: number; y: number; width: number; height: number } | null {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let hasPoints = false;

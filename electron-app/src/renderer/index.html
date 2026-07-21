@@ -12,31 +12,30 @@
       <span id="connection-status" class="disconnected">● 未连接</span>
       <span id="connection-ip">端口 8080 等待连接...</span>
       <div id="top-actions">
-        <button id="btn-copy">📋 复制</button>
-        <button id="btn-save">💾 保存</button>
+        <button id="btn-copy">复制</button>
+        <button id="btn-save">保存</button>
       </div>
     </div>
+
+    <!-- 翻页条 -->
+    <div id="page-bar">
+      <button id="btn-page-prev">← 上一页</button>
+      <span id="page-indicator">1 / 1</span>
+      <button id="btn-page-next">下一页 →</button>
+      <button id="btn-page-new">＋ 新建页面</button>
+      <button id="btn-page-delete">删除本页</button>
+    </div>
+
     <canvas id="canvas"></canvas>
+
     <div id="toolbar">
-      <div id="color-picker">
-        <button class="color-btn active" data-color="#000000" style="background:#000000"></button>
-        <button class="color-btn" data-color="#FF0000" style="background:#FF0000"></button>
-        <button class="color-btn" data-color="#0000FF" style="background:#0000FF"></button>
-        <button class="color-btn" data-color="#00AA00" style="background:#00AA00"></button>
-        <button class="color-btn" data-color="#FF8800" style="background:#FF8800"></button>
-        <button class="color-btn" data-color="#8800FF" style="background:#8800FF"></button>
-      </div>
-      <div id="width-control">
-        <label>粗细</label>
-        <input type="range" id="width-slider" min="1" max="20" value="3" />
-      </div>
       <div id="mode-buttons">
-        <button id="mode-pen" class="mode-btn active">✏️ 画笔</button>
-        <button id="mode-eraser-stroke" class="mode-btn">🖊️ 擦笔画</button>
-        <button id="mode-eraser-region" class="mode-btn">📐 擦区域</button>
-        <button id="btn-undo" class="action-btn">↩ 撤销</button>
-        <button id="btn-clear" class="action-btn danger">🗑 清空</button>
+        <button id="mode-eraser-stroke" class="mode-btn active">擦笔画</button>
+        <button id="mode-eraser-region" class="mode-btn">擦区域</button>
+        <button id="btn-undo" class="action-btn">撤销</button>
+        <button id="btn-clear" class="action-btn danger">清空</button>
       </div>
+      <span id="tool-hint">（擦除/撤销/清空操作在平板上执行）</span>
     </div>
   </div>
   <script type="module" src="app.js"></script>
