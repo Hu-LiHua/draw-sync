@@ -24,13 +24,20 @@ function updateConnectionStatus(connected: boolean) {
   if (connected) {
     el.className = 'connected';
     el.textContent = '● 已连接';
-    ipEl.textContent = '平板已连接';
+    ipEl.textContent = localIP ? ` ${localIP}:8080` : '平板已连接';
   } else {
     el.className = 'disconnected';
     el.textContent = '● 未连接';
-    ipEl.textContent = '端口 8080 等待连接...';
   }
 }
+
+// --- 收到本机 IP 后更新显示 ---
+let localIP = '';
+window.electronAPI.onLocalIp((ip: string) => {
+  localIP = ip;
+  const ipEl = document.getElementById('connection-ip')!;
+  ipEl.textContent = `${ip}:8080 等待连接...`;
+});
 
 // --- 坐标缩放（Android 像素 → PC 画布） ---
 let androidVw = 2560;
@@ -221,6 +228,7 @@ declare global {
       sendToClient: (msg: any) => void;
       onDrawingMessage: (callback: (msg: any) => void) => void;
       onConnectionStatus: (callback: (connected: boolean) => void) => void;
+      onLocalIp: (callback: (ip: string) => void) => void;
     };
   }
 }

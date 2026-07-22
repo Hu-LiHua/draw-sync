@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
+import * as os from 'os';
 import { registerIpcHandlers } from './ipc-handlers';
 import { DrawSyncServer } from './WebSocketServer';
 
@@ -20,6 +21,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+
+  // 获取本机局域网 IP 并发送到渲染进程
+  mainWindow.webContents.on('did-finish-load', () => {
+    const ip = getLocalIP();
+    mainWindow?.webContents.send('local-ip', ip);
+  });
 
   // 启动 WebSocket 服务端
   const server = new DrawSyncServer(
@@ -43,6 +50,25 @@ function createWindow() {
     server.stop();
     mainWindow = null;
   });
+}
+
+/** 获取本机局域网 IPv4 地址 */
+function getLocalIP(): string {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    const iface = nets[name];
+    if (!iface) continue;
+    for (const addr of iface) {
+      // 跳过内部回环和 IPv6
+      if (addr.family === 'IPv4' && !addr.internal) {
+        // 优先返回 192.168.x.x 局域网地址
+        if (addr.address.startsWith('192.168.') || addr.address.startsWith('10.') || addr.address.startsWith('172.')) {
+          return addr.address;
+        }
+      }
+    }
+  }
+  return '127.0.0.1';
 }
 
 app.whenReady().then(createWindow);

@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onConnectionStatus: (callback: (connected: boolean) => void) => {
     ipcRenderer.on('connection-status', (_event, connected) => callback(connected));
   },
+  onLocalIp: (callback: (ip: string) => void) => {
+    ipcRenderer.on('local-ip', (_event, ip) => callback(ip));
+  },
 });
