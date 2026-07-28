@@ -52,6 +52,9 @@ class WebSocketClient(
                             if (idx >= 0) mainHandler.post { onPageCommand?.invoke("page_go", idx) }
                         }
                         "page_delete" -> mainHandler.post { onPageCommand?.invoke("page_delete", null) }
+                        "selection_clear" -> {
+                            // PC→Android 扩展点：当前 Android 端不处理反向 selection_clear
+                        }
                     }
                 } catch (_: Exception) { }
             }
@@ -170,5 +173,43 @@ class WebSocketClient(
 
     fun sendPageDelete() {
         webSocket?.send(JSONObject().apply { put("type", "page_delete") }.toString())
+    }
+
+    fun sendLassoErase(points: List<PointF>) {
+        val jsonPoints = JSONArray()
+        for (p in points) {
+            jsonPoints.put(JSONObject().apply {
+                put("x", p.x.toDouble())
+                put("y", p.y.toDouble())
+            })
+        }
+        val json = JSONObject().apply {
+            put("type", "lasso_erase")
+            put("points", jsonPoints)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendLassoSelect(strokeIds: List<String>) {
+        val jsonIds = JSONArray()
+        for (id in strokeIds) jsonIds.put(id)
+        val json = JSONObject().apply {
+            put("type", "lasso_select")
+            put("strokeIds", jsonIds)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendSelectionMove(dx: Float, dy: Float) {
+        val json = JSONObject().apply {
+            put("type", "selection_move")
+            put("dx", dx.toDouble())
+            put("dy", dy.toDouble())
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendSelectionClear() {
+        webSocket?.send(JSONObject().apply { put("type", "selection_clear") }.toString())
     }
 }
