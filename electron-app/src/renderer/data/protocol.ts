@@ -21,6 +21,10 @@ export type WsMessage =
   | { type: 'eraser_stroke'; targetId: string }
   | { type: 'eraser_region_start'; start: Point }
   | { type: 'eraser_region_end'; start: Point; end: Point }
+  | { type: 'lasso_erase'; points: Point[] }
+  | { type: 'lasso_select'; strokeIds: string[] }
+  | { type: 'selection_clear' }
+  | { type: 'selection_move'; dx: number; dy: number }
   | { type: 'clear' }
   | { type: 'undo' }
   | { type: 'set_pen'; color: string; width: number }
@@ -28,4 +32,4 @@ export type WsMessage =
   | { type: 'page_go'; pageIdx: number }
   | { type: 'page_delete' };
 
-export type ToolMode = 'eraser-stroke' | 'eraser-region';
+export type ToolMode = 'eraser-stroke' | 'eraser-region' | 'lasso';
