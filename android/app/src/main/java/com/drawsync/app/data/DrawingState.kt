@@ -12,6 +12,9 @@ class DrawingState {
     private val undoTimelines = mutableListOf(Stack<List<Stroke>>())
     private val historyLimit = 50
 
+    /** 每页独立的选中状态 */
+    private val selectedStrokeIdsByPage = mutableMapOf(0 to mutableSetOf<String>())
+
     /** 当前页的笔触列表 */
     val strokes: MutableList<Stroke>
         get() = pages[currentPageIdx]
@@ -23,7 +26,23 @@ class DrawingState {
     private val undoStack: Stack<List<Stroke>>
         get() = undoTimelines[currentPageIdx]
 
+    /** 当前页的选中笔画 ID 集合 */
+    @get:JvmName("currentPageSelectedIds")
+    private val selectedStrokeIds: MutableSet<String>
+        get() = selectedStrokeIdsByPage.getOrPut(currentPageIdx) { mutableSetOf() }
+
     fun getCurrentStroke(): Stroke? = currentStroke
+
+    fun selectStrokes(ids: List<String>) {
+        selectedStrokeIds.clear()
+        selectedStrokeIds.addAll(ids)
+    }
+
+    fun clearSelection() {
+        selectedStrokeIds.clear()
+    }
+
+    fun getSelectedStrokeIds(): MutableSet<String> = selectedStrokeIds
 
     fun startStroke(color: Int, width: Float, pressure: Float = 0f): Stroke {
         val stroke = Stroke(color = color, width = width, pressure = pressure)
@@ -75,6 +94,7 @@ class DrawingState {
         pushUndoState()
         strokes.clear()
         currentStroke = null
+        selectedStrokeIds.clear()
     }
 
     fun undo(): Boolean {
@@ -88,9 +108,18 @@ class DrawingState {
     // --- 翻页 ---
 
     fun newPage() {
-        pages.add(currentPageIdx + 1, mutableListOf())
-        undoTimelines.add(currentPageIdx + 1, Stack())
+        val insertIdx = currentPageIdx + 1
+        pages.add(insertIdx, mutableListOf())
+        undoTimelines.add(insertIdx, Stack())
+        // 迁移选中状态索引
+        val newSelMap = mutableMapOf<Int, MutableSet<String>>()
+        for ((pageIdx, selSet) in selectedStrokeIdsByPage) {
+            newSelMap[if (pageIdx >= insertIdx) pageIdx + 1 else pageIdx] = selSet
+        }
+        selectedStrokeIdsByPage.clear()
+        selectedStrokeIdsByPage.putAll(newSelMap)
         currentPageIdx++
+        selectedStrokeIdsByPage[currentPageIdx] = mutableSetOf()
         currentStroke = null
     }
 
@@ -98,14 +127,24 @@ class DrawingState {
         if (idx < 0 || idx >= pages.size) return false
         currentPageIdx = idx
         currentStroke = null
+        selectedStrokeIdsByPage.getOrPut(idx) { mutableSetOf() }
         return true
     }
 
     fun deleteCurrentPage(): Boolean {
         if (pages.size <= 1) return false
-        pages.removeAt(currentPageIdx)
-        undoTimelines.removeAt(currentPageIdx)
+        val deletedIdx = currentPageIdx
+        pages.removeAt(deletedIdx)
+        undoTimelines.removeAt(deletedIdx)
         if (currentPageIdx >= pages.size) currentPageIdx = pages.size - 1
+        // 迁移选中状态索引
+        selectedStrokeIdsByPage.remove(deletedIdx)
+        val newSelMap = mutableMapOf<Int, MutableSet<String>>()
+        for ((pageIdx, selSet) in selectedStrokeIdsByPage) {
+            newSelMap[if (pageIdx > deletedIdx) pageIdx - 1 else pageIdx] = selSet
+        }
+        selectedStrokeIdsByPage.clear()
+        selectedStrokeIdsByPage.putAll(newSelMap)
         currentStroke = null
         return true
     }
@@ -128,6 +167,91 @@ class DrawingState {
             maxOf(0f, minX - padding), maxOf(0f, minY - padding),
             maxX + padding, maxY + padding
         )
+    }
+
+    /**
+     * winding number 算法判断点是否在多边形内。
+     * epsilon 1e-6 容差处理 ON_EDGE 情况。
+     */
+    fun pointInPolygon(point: PointF, polygon: List<PointF>): Boolean {
+        val px = point.x; val py = point.y
+        val n = polygon.size
+        var wn = 0
+
+        for (i in 0 until n) {
+            val p1 = polygon[i]
+            val p2 = polygon[(i + 1) % n]
+
+            // 检查点是否在边上
+            val cross = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y)
+            if (Math.abs(cross) < 1e-6) {
+                val dot = (px - p1.x) * (p2.x - p1.x) + (py - p1.y) * (p2.y - p1.y)
+                if (dot >= 0) {
+                    val len2 = (p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)
+                    if (dot <= len2 + 1e-6f) return true
+                }
+            }
+
+            if (p1.y <= py + 1e-6f) {
+                if (p2.y > py + 1e-6f) {
+                    val isLeft = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y)
+                    if (isLeft > 0) wn++
+                }
+            } else {
+                if (p2.y <= py + 1e-6f) {
+                    val isLeft = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y)
+                    if (isLeft < 0) wn--
+                }
+            }
+        }
+        return wn != 0
+    }
+
+    /** 返回至少有一个点落入套索多边形的笔画 ID 列表 */
+    fun getStrokesInLasso(polygon: List<PointF>): List<String> {
+        val ids = mutableListOf<String>()
+        for (stroke in strokes) {
+            for (p in stroke.points) {
+                if (pointInPolygon(p, polygon)) {
+                    ids.add(stroke.id)
+                    break
+                }
+            }
+        }
+        return ids
+    }
+
+    /** 套索区域擦除：裁剪落入多边形内的坐标点 */
+    fun eraseLassoRegion(polygon: List<PointF>): Boolean {
+        if (polygon.size < 3) return false
+        pushUndoState()
+        var changed = false
+        for (stroke in strokes) {
+            val before = stroke.points.size
+            stroke.points.removeAll { pointInPolygon(it, polygon) }
+            if (stroke.points.size != before) changed = true
+        }
+        strokes.removeAll { it.points.isEmpty() }
+        clearSelection()
+        return changed
+    }
+
+    /** 移动选中笔画 */
+    fun moveStrokes(ids: List<String>, dx: Float, dy: Float) {
+        if (ids.isEmpty()) return
+        pushUndoState()
+        val idSet = ids.toSet()
+        for (stroke in strokes) {
+            if (stroke.id in idSet) {
+                stroke.points.replaceAll { PointF(it.x + dx, it.y + dy, it.pressure) }
+            }
+        }
+    }
+
+    /** 重置所有进行中的操作状态 */
+    fun resetInProgressOperations() {
+        currentStroke = null
+        clearSelection()
     }
 
     private fun pushUndoState() {
