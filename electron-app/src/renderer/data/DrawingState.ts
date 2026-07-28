@@ -8,6 +8,12 @@ export class DrawingState {
   /** 每页独立的撤销栈 */
   private undoTimelines: Array<StrokeData[][]> = [[]];
   private historyLimit = 50;
+  /** 每页独立的选中状态 */
+  private selectedStrokeIdsByPage: Map<number, Set<string>> = new Map();
+
+  constructor() {
+    this.selectedStrokeIdsByPage.set(0, new Set());
+  }
 
   // --- 便捷 getter/setter，透明重定向到当前页 ---
   private get strokes(): StrokeData[] {
@@ -18,6 +24,14 @@ export class DrawingState {
   }
   private get undoStack(): StrokeData[][] {
     return this.undoTimelines[this.currentPageIdx];
+  }
+
+  /** 当前页的选中笔画 ID 集合 */
+  private get selectedStrokeIds(): Set<string> {
+    if (!this.selectedStrokeIdsByPage.has(this.currentPageIdx)) {
+      this.selectedStrokeIdsByPage.set(this.currentPageIdx, new Set());
+    }
+    return this.selectedStrokeIdsByPage.get(this.currentPageIdx)!;
   }
 
   getCurrentStroke(): StrokeData | null { return this.currentStroke; }
@@ -77,6 +91,7 @@ export class DrawingState {
     this.pushUndoState();
     this.strokes = [];
     this.currentStroke = null;
+    this.selectedStrokeIds.clear();
   }
 
   undo(): boolean {
@@ -86,12 +101,127 @@ export class DrawingState {
     return true;
   }
 
+  // --- 选中状态管理 ---
+
+  selectStrokes(ids: string[]): void {
+    this.selectedStrokeIds.clear();
+    for (const id of ids) this.selectedStrokeIds.add(id);
+  }
+
+  clearSelection(): void {
+    this.selectedStrokeIds.clear();
+  }
+
+  getSelectedStrokeIds(): Set<string> {
+    return this.selectedStrokeIds;
+  }
+
+  // --- 多边形工具方法 ---
+
+  /**
+   * winding number 算法判断点是否在多边形内。
+   * epsilon 1e-6 容差处理 ON_EDGE 情况。
+   */
+  pointInPolygon(point: Point, polygon: Point[]): boolean {
+    const { x: px, y: py } = point;
+    const n = polygon.length;
+    let wn = 0;
+
+    for (let i = 0; i < n; i++) {
+      const p1 = polygon[i];
+      const p2 = polygon[(i + 1) % n];
+
+      // 检查点是否在边上
+      const cross = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y);
+      if (Math.abs(cross) < 1e-6) {
+        const dot = (px - p1.x) * (p2.x - p1.x) + (py - p1.y) * (p2.y - p1.y);
+        if (dot >= 0) {
+          const len2 = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
+          if (dot <= len2 + 1e-6) return true;
+        }
+      }
+
+      if (p1.y <= py + 1e-6) {
+        if (p2.y > py + 1e-6) {
+          const isLeft = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y);
+          if (isLeft > 0) wn++;
+        }
+      } else {
+        if (p2.y <= py + 1e-6) {
+          const isLeft = (p2.x - p1.x) * (py - p1.y) - (px - p1.x) * (p2.y - p1.y);
+          if (isLeft < 0) wn--;
+        }
+      }
+    }
+    return wn !== 0;
+  }
+
+  /** 返回至少有一个点落入套索多边形的笔画 ID 列表 */
+  getStrokesInLasso(polygon: Point[]): string[] {
+    const ids: string[] = [];
+    for (const stroke of this.strokes) {
+      for (const p of stroke.points) {
+        if (this.pointInPolygon(p, polygon)) {
+          ids.push(stroke.id);
+          break;
+        }
+      }
+    }
+    return ids;
+  }
+
+  /** 套索区域擦除：裁剪落入多边形内的坐标点 */
+  eraseLassoRegion(polygon: Point[]): boolean {
+    if (polygon.length < 3) return false;
+    this.pushUndoState();
+    let changed = false;
+    for (const stroke of this.strokes) {
+      const filtered = stroke.points.filter(p => !this.pointInPolygon(p, polygon));
+      if (filtered.length !== stroke.points.length) {
+        stroke.points = filtered;
+        changed = true;
+      }
+    }
+    this.strokes = this.strokes.filter(s => s.points.length > 0);
+    this.clearSelection();
+    return changed;
+  }
+
+  /** 移动选中笔画 */
+  moveStrokes(ids: string[], dx: number, dy: number): void {
+    if (ids.length === 0) return;
+    this.pushUndoState();
+    const idSet = new Set(ids);
+    for (const stroke of this.strokes) {
+      if (idSet.has(stroke.id)) {
+        for (const p of stroke.points) {
+          p.x += dx;
+          p.y += dy;
+        }
+      }
+    }
+  }
+
+  /** 重置所有进行中的操作状态 */
+  resetInProgressOperations(): void {
+    this.currentStroke = null;
+    this.clearSelection();
+  }
+
   // --- 翻页操作 ---
 
   /** 新建空白页（插入到当前页之后并跳转） */
   newPage(): void {
-    this.pages.splice(this.currentPageIdx + 1, 0, []);
-    this.undoTimelines.splice(this.currentPageIdx + 1, 0, []);
+    const insertIdx = this.currentPageIdx + 1;
+    this.pages.splice(insertIdx, 0, []);
+    this.undoTimelines.splice(insertIdx, 0, []);
+    // 迁移选中状态索引
+    const newSelMap = new Map<number, Set<string>>();
+    for (const [pageIdx, selSet] of this.selectedStrokeIdsByPage.entries()) {
+      newSelMap.set(pageIdx >= insertIdx ? pageIdx + 1 : pageIdx, selSet);
+    }
+    this.selectedStrokeIdsByPage = newSelMap;
+    this.selectedStrokeIdsByPage.set(this.currentPageIdx + 1, new Set());
     this.currentPageIdx++;
     this.currentStroke = null;
   }
@@ -101,17 +231,27 @@ export class DrawingState {
     if (idx < 0 || idx >= this.pages.length) return false;
     this.currentPageIdx = idx;
     this.currentStroke = null;
+    if (!this.selectedStrokeIdsByPage.has(idx)) {
+      this.selectedStrokeIdsByPage.set(idx, new Set());
+    }
     return true;
   }
 
   /** 删除当前页，至少保留一页 */
   deleteCurrentPage(): boolean {
     if (this.pages.length <= 1) return false;
-    this.pages.splice(this.currentPageIdx, 1);
-    this.undoTimelines.splice(this.currentPageIdx, 1);
+    const deletedIdx = this.currentPageIdx;
+    this.pages.splice(deletedIdx, 1);
+    this.undoTimelines.splice(deletedIdx, 1);
     if (this.currentPageIdx >= this.pages.length) {
       this.currentPageIdx = this.pages.length - 1;
     }
+    this.selectedStrokeIdsByPage.delete(deletedIdx);
+    const newSelMap = new Map<number, Set<string>>();
+    for (const [pageIdx, selSet] of this.selectedStrokeIdsByPage.entries()) {
+      newSelMap.set(pageIdx > deletedIdx ? pageIdx - 1 : pageIdx, selSet);
+    }
+    this.selectedStrokeIdsByPage = newSelMap;
     this.currentStroke = null;
     return true;
   }
