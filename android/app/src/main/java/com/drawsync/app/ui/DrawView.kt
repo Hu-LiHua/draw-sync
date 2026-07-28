@@ -5,6 +5,7 @@ import android.graphics.*
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.widget.Toast
 import com.drawsync.app.data.DrawingState
 import com.drawsync.app.data.PointF
 import com.drawsync.app.data.Stroke
@@ -21,8 +22,20 @@ class DrawView @JvmOverloads constructor(
     var onEraserStroke: ((String) -> Unit)? = null
     var onEraserRegionStart: ((PointF) -> Unit)? = null
     var onEraserRegionEnd: ((PointF, PointF) -> Unit)? = null
+    var onLassoErase: ((List<PointF>) -> Unit)? = null
+    var onLassoSelect: ((List<String>) -> Unit)? = null
+    var onSelectionMove: ((Float, Float) -> Unit)? = null
+    var onSelectionClear: (() -> Unit)? = null
 
     var toolMode: ToolMode = ToolMode.PEN
+        set(value) {
+            field = value
+            resetLassoState()
+            if (value != ToolMode.LASSO) {
+                drawingState.clearSelection()
+                drawingState.resetInProgressOperations()
+            }
+        }
     var currentColor: Int = Color.BLACK
     var currentWidth: Float = 3f
 
@@ -52,23 +65,60 @@ class DrawView @JvmOverloads constructor(
     // 点击命中检测距离
     private val hitRadius = 15f
 
-    enum class ToolMode { PEN, ERASER_STROKE, ERASER_REGION }
+    // --- 套索状态 ---
+    private val lassoPoints = mutableListOf<PointF>()
+    private var lassoActionMode: String? = null // "erase" | "move" | null
+    private var dragStartX = 0f
+    private var dragStartY = 0f
+    private var dragAccumDx = 0f
+    private var dragAccumDy = 0f
+    private var isDragging = false
+    private val selectedStrokeIds = mutableSetOf<String>()
+
+    // 套索轮廓画笔
+    private val lassoPaint = Paint().apply {
+        color = 0xCC3399FF.toInt()
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        isAntiAlias = true
+        pathEffect = DashPathEffect(floatArrayOf(10f, 6f), 0f)
+    }
+
+    // 选中高亮画笔
+    private val highlightPaint = Paint().apply {
+        color = 0x803399FF.toInt()
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        isAntiAlias = true
+    }
+
+    enum class ToolMode { PEN, ERASER_STROKE, ERASER_REGION, LASSO }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        // 绘制所有已完成笔画
         for (stroke in drawingState.strokes) {
-            drawStroke(canvas, stroke)
+            if (isDragging && stroke.id in selectedStrokeIds) {
+                canvas.save()
+                canvas.translate(dragAccumDx, dragAccumDy)
+                drawStroke(canvas, stroke)
+                canvas.restore()
+                canvas.save()
+                canvas.translate(dragAccumDx, dragAccumDy)
+                drawHighlightStroke(canvas, stroke)
+                canvas.restore()
+            } else {
+                drawStroke(canvas, stroke)
+                if (stroke.id in drawingState.getSelectedStrokeIds()) {
+                    drawHighlightStroke(canvas, stroke)
+                }
+            }
         }
 
-        // 绘制当前笔画
         val current = drawingState.getCurrentStroke()
-        if (current != null) {
-            drawStroke(canvas, current)
-        }
+        if (current != null) drawStroke(canvas, current)
 
-        // 绘制区域擦除框选
         if (regionStartPoint != null && regionCurrentPoint != null) {
             val left = minOf(regionStartPoint!!.x, regionCurrentPoint!!.x)
             val top = minOf(regionStartPoint!!.y, regionCurrentPoint!!.y)
@@ -76,6 +126,15 @@ class DrawView @JvmOverloads constructor(
             val bottom = maxOf(regionStartPoint!!.y, regionCurrentPoint!!.y)
             canvas.drawRect(left, top, right, bottom, eraserPaint)
             canvas.drawRect(left, top, right, bottom, eraserBorderPaint)
+        }
+
+        if (lassoPoints.size >= 2) {
+            val path = Path()
+            path.moveTo(lassoPoints[0].x, lassoPoints[0].y)
+            for (i in 1 until lassoPoints.size) {
+                path.lineTo(lassoPoints[i].x, lassoPoints[i].y)
+            }
+            canvas.drawPath(path, lassoPaint)
         }
     }
 
@@ -92,6 +151,17 @@ class DrawView @JvmOverloads constructor(
         canvas.drawPath(path, paint)
     }
 
+    private fun drawHighlightStroke(canvas: Canvas, stroke: Stroke) {
+        if (stroke.points.size < 1) return
+        highlightPaint.strokeWidth = stroke.width + 6f
+        val path = Path()
+        path.moveTo(stroke.points[0].x, stroke.points[0].y)
+        for (i in 1 until stroke.points.size) {
+            path.lineTo(stroke.points[i].x, stroke.points[i].y)
+        }
+        canvas.drawPath(path, highlightPaint)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
@@ -101,6 +171,7 @@ class DrawView @JvmOverloads constructor(
             ToolMode.PEN -> handlePenTouch(event, x, y, pressure)
             ToolMode.ERASER_STROKE -> handleEraserStrokeTouch(event, x, y)
             ToolMode.ERASER_REGION -> handleEraserRegionTouch(event, x, y)
+            ToolMode.LASSO -> handleLassoTouch(event, x, y)
         }
 
         return true
@@ -178,6 +249,112 @@ class DrawView @JvmOverloads constructor(
                 invalidate()
             }
         }
+    }
+
+    private fun handleLassoTouch(event: MotionEvent, x: Float, y: Float) {
+        if (lassoActionMode == null) {
+            handleLassoDraw(event, x, y)
+        } else if (lassoActionMode == "move") {
+            handleLassoDrag(event, x, y)
+        }
+    }
+
+    private fun handleLassoDraw(event: MotionEvent, x: Float, y: Float) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                lassoPoints.clear()
+                lassoPoints.add(PointF(x, y))
+                invalidate()
+            }
+            MotionEvent.ACTION_MOVE -> {
+                lassoPoints.add(PointF(x, y))
+                invalidate()
+            }
+            MotionEvent.ACTION_UP -> {
+                if (lassoPoints.size >= 2) {
+                    lassoPoints.add(lassoPoints.first()) // 闭合
+                }
+                if (lassoPoints.size < 3) {
+                    Toast.makeText(context, "请画大一点的圈", Toast.LENGTH_SHORT).show()
+                    resetLassoState()
+                    invalidate()
+                    return
+                }
+                val ids = drawingState.getStrokesInLasso(lassoPoints.toList())
+                if (ids.isEmpty()) {
+                    resetLassoState()
+                    invalidate()
+                    return
+                }
+                onLassoSelect?.invoke(ids)
+                invalidate()
+            }
+        }
+    }
+
+    private fun handleLassoDrag(event: MotionEvent, x: Float, y: Float) {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                dragStartX = x; dragStartY = y
+                dragAccumDx = 0f; dragAccumDy = 0f
+                isDragging = true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!isDragging) return
+                dragAccumDx = x - dragStartX
+                dragAccumDy = y - dragStartY
+                invalidate()
+            }
+            MotionEvent.ACTION_UP -> {
+                isDragging = false
+                if (selectedStrokeIds.isNotEmpty()) {
+                    val dx = dragAccumDx; val dy = dragAccumDy
+                    drawingState.moveStrokes(selectedStrokeIds.toList(), dx, dy)
+                    onSelectionMove?.invoke(dx, dy)
+                    onSelectionClear?.invoke()
+                    drawingState.clearSelection()
+                }
+                resetLassoState()
+                invalidate()
+            }
+        }
+    }
+
+    fun enterLassoMoveMode(strokeIds: List<String>) {
+        lassoActionMode = "move"
+        selectedStrokeIds.clear()
+        selectedStrokeIds.addAll(strokeIds)
+        drawingState.selectStrokes(strokeIds)
+    }
+
+    fun executeLassoErase(): Boolean {
+        val points = lassoPoints.toList()
+        val changed = drawingState.eraseLassoRegion(points)
+        onLassoErase?.invoke(points)
+        resetLassoState()
+        drawingState.clearSelection()
+        invalidate()
+        return changed
+    }
+
+    fun cancelLasso() {
+        resetLassoState()
+        drawingState.clearSelection()
+        invalidate()
+    }
+
+    fun hasPendingLasso(): Boolean =
+        lassoPoints.size >= 3 && lassoActionMode == null
+
+    fun getLastLassoStrokeIds(): List<String> =
+        drawingState.getStrokesInLasso(lassoPoints.toList())
+
+    private fun resetLassoState() {
+        lassoPoints.clear()
+        lassoActionMode = null
+        dragStartX = 0f; dragStartY = 0f
+        dragAccumDx = 0f; dragAccumDy = 0f
+        isDragging = false
     }
 
     private fun findStrokeAt(x: Float, y: Float): Stroke? {
