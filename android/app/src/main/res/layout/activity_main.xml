@@ -142,6 +142,13 @@
             android:textOn="📐"
             android:textOff="📐"
             android:background="?android:attr/selectableItemBackground" />
+        <ToggleButton
+            android:id="@+id/btnLasso"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textOn="套索"
+            android:textOff="套索"
+            android:textSize="13sp" />
 
         <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
 

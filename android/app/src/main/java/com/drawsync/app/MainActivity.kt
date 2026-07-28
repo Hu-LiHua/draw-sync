@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modePen: ToggleButton
     private lateinit var modeEraserStroke: ToggleButton
     private lateinit var modeEraserRegion: ToggleButton
+    private lateinit var modeLasso: ToggleButton
     private lateinit var pageIndicator: TextView
     private lateinit var btnPagePrev: Button
     private lateinit var btnPageNext: Button
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         modePen = findViewById(R.id.modePen)
         modeEraserStroke = findViewById(R.id.modeEraserStroke)
         modeEraserRegion = findViewById(R.id.modeEraserRegion)
+        modeLasso = findViewById(R.id.btnLasso)
         pageIndicator = findViewById(R.id.pageIndicator)
         btnPagePrev = findViewById(R.id.btnPagePrev)
         btnPageNext = findViewById(R.id.btnPageNext)
@@ -108,7 +110,8 @@ class MainActivity : AppCompatActivity() {
                 drawView.toolMode = DrawView.ToolMode.PEN
                 modeEraserStroke.isChecked = false
                 modeEraserRegion.isChecked = false
-            } else if (!modeEraserStroke.isChecked && !modeEraserRegion.isChecked) {
+                modeLasso.isChecked = false
+            } else if (!modeEraserStroke.isChecked && !modeEraserRegion.isChecked && !modeLasso.isChecked) {
                 modePen.isChecked = true
             }
         }
@@ -117,7 +120,8 @@ class MainActivity : AppCompatActivity() {
                 drawView.toolMode = DrawView.ToolMode.ERASER_STROKE
                 modePen.isChecked = false
                 modeEraserRegion.isChecked = false
-            } else if (!modePen.isChecked && !modeEraserRegion.isChecked) {
+                modeLasso.isChecked = false
+            } else if (!modePen.isChecked && !modeEraserRegion.isChecked && !modeLasso.isChecked) {
                 modeEraserStroke.isChecked = true
             }
         }
@@ -126,8 +130,20 @@ class MainActivity : AppCompatActivity() {
                 drawView.toolMode = DrawView.ToolMode.ERASER_REGION
                 modePen.isChecked = false
                 modeEraserStroke.isChecked = false
-            } else if (!modePen.isChecked && !modeEraserStroke.isChecked) {
+                modeLasso.isChecked = false
+            } else if (!modePen.isChecked && !modeEraserStroke.isChecked && !modeLasso.isChecked) {
                 modeEraserRegion.isChecked = true
+            }
+        }
+
+        modeLasso.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                drawView.toolMode = DrawView.ToolMode.LASSO
+                modePen.isChecked = false
+                modeEraserStroke.isChecked = false
+                modeEraserRegion.isChecked = false
+            } else if (!modePen.isChecked && !modeEraserStroke.isChecked && !modeEraserRegion.isChecked) {
+                modeLasso.isChecked = true
             }
         }
 
@@ -317,6 +333,19 @@ class MainActivity : AppCompatActivity() {
         drawView.onEraserRegionEnd = { start, end ->
             webSocket?.sendEraserRegionEnd(start, end)
         }
+
+        drawView.onLassoErase = { points ->
+            webSocket?.sendLassoErase(points)
+        }
+        drawView.onLassoSelect = { ids ->
+            showLassoActionBar(ids)
+        }
+        drawView.onSelectionMove = { dx, dy ->
+            webSocket?.sendSelectionMove(dx, dy)
+        }
+        drawView.onSelectionClear = {
+            webSocket?.sendSelectionClear()
+        }
     }
 
     override fun onDestroy() {
@@ -326,6 +355,67 @@ class MainActivity : AppCompatActivity() {
             (btnExitFocus.parent as ViewGroup).removeView(btnExitFocus)
         }
         super.onDestroy()
+    }
+
+    private var lassoActionBar: LinearLayout? = null
+
+    private fun showLassoActionBar(strokeIds: List<String>) {
+        lassoActionBar?.let { (it.parent as? ViewGroup)?.removeView(it) }
+
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(16.dp, 8.dp, 16.dp, 8.dp)
+            setBackgroundColor(0xDD333333.toInt())
+        }
+
+        val eraseBtn = Button(this).apply {
+            text = "🗑️ 擦除"
+            setTextColor(0xFFFFFFFF.toInt())
+            setBackgroundColor(0xFFE53E3E.toInt())
+            setOnClickListener {
+                drawView.executeLassoErase()
+                hideLassoActionBar()
+            }
+        }
+        bar.addView(eraseBtn, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { setMargins(4.dp, 0, 4.dp, 0) })
+
+        val moveBtn = Button(this).apply {
+            text = "✋ 移动"
+            setTextColor(0xFFFFFFFF.toInt())
+            setBackgroundColor(0xFF3399FF.toInt())
+            setOnClickListener {
+                drawView.enterLassoMoveMode(strokeIds)
+                webSocket?.sendLassoSelect(strokeIds)
+                hideLassoActionBar()
+            }
+        }
+        bar.addView(moveBtn, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+        ).apply { setMargins(4.dp, 0, 4.dp, 0) })
+
+        val params = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM
+        ).apply { bottomMargin = toolbar.height + 8.dp }
+
+        (findViewById<FrameLayout>(android.R.id.content) as FrameLayout)
+            .addView(bar, params)
+
+        lassoActionBar = bar
+
+        drawView.setOnClickListener {
+            drawView.cancelLasso()
+            hideLassoActionBar()
+        }
+    }
+
+    private fun hideLassoActionBar() {
+        lassoActionBar?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        lassoActionBar = null
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
