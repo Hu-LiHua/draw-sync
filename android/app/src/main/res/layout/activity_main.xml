@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 连接状态栏 -->
+    <LinearLayout
+        android:id="@+id/connectionBar"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="#FFFFFF"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/connectionStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="● 未连接"
+            android:textColor="#999999"
+            android:textSize="14sp" />
+        <EditText
+            android:id="@+id/ipInput"
+            android:layout_width="120dp"
+            android:layout_height="32dp"
+            android:hint="192.168.1.100"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:background="@android:drawable/editbox_background" />
+        <Button
+            android:id="@+id/connectBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="连接"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 翻页条 -->
+    <LinearLayout
+        android:id="@+id/pageBar"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:background="#FAFAFA"
+        android:paddingHorizontal="12dp">
+
+        <Button
+            android:id="@+id/btnPagePrev"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="← 上一页"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+
+        <TextView
+            android:id="@+id/pageIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1 / 1"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginHorizontal="12dp" />
+
+        <Button
+            android:id="@+id/btnPageNext"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="下一页 →"
+            android:textSize="13sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+
+        <Button
+            android:id="@+id/btnPageNew"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="＋ 新建"
+            android:textSize="13sp"
+            android:textColor="#1976D2"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp"
+            android:layout_marginLeft="8dp" />
+
+        <Button
+            android:id="@+id/btnPageDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="删除本页"
+            android:textSize="13sp"
+            android:textColor="#D32F2F"
+            android:background="?android:attr/selectableItemBackground"
+            android:minWidth="0dp"
+            android:paddingHorizontal="10dp" />
+    </LinearLayout>
+
+    <!-- 绘图区域 -->
+    <com.drawsync.app.ui.DrawView
+        android:id="@+id/drawView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF" />
+
+    <!-- 底部工具栏 -->
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:background="#FFFFFF">
+
+        <!-- 模式切换 -->
+        <ToggleButton
+            android:id="@+id/modePen"
+            android:layout_width="48dp"
+            android:layout_height="40dp"
+            android:textOn="✏️"
+            android:textOff="✏️"
+            android:checked="true"
+            android:background="?android:attr/selectableItemBackground" />
+        <ToggleButton
+            android:id="@+id/modeEraserStroke"
+            android:layout_width="48dp"
+            android:layout_height="40dp"
+            android:textOn="🖊️"
+            android:textOff="🖊️"
+            android:background="?android:attr/selectableItemBackground" />
+        <ToggleButton
+            android:id="@+id/modeEraserRegion"
+            android:layout_width="48dp"
+            android:layout_height="40dp"
+            android:textOn="📐"
+            android:textOff="📐"
+            android:background="?android:attr/selectableItemBackground" />
+        <ToggleButton
+            android:id="@+id/btnLasso"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textOn="套索"
+            android:textOff="套索"
+            android:textSize="13sp" />
+
+        <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
+
+        <!-- 颜色选择 -->
+        <HorizontalScrollView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:scrollbars="none">
+            <LinearLayout
+                android:id="@+id/colorPicker"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginHorizontal="4dp" />
+        </HorizontalScrollView>
+
+        <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
+
+        <!-- 粗细滑块 -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="粗细" android:textSize="12sp" android:layout_marginLeft="4dp" />
+        <SeekBar
+            android:id="@+id/widthSlider"
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:max="19"
+            android:progress="2" />
+
+        <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
+
+        <!-- 操作按钮 -->
+        <Button
+            android:id="@+id/btnUndo"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="↩"
+            android:background="?android:attr/selectableItemBackground" />
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="🗑"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <View android:layout_width="1dp" android:layout_height="32dp" android:background="#DDD" />
+
+        <Button
+            android:id="@+id/btnFocus"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="⛶"
+            android:textSize="16sp"
+            android:background="?android:attr/selectableItemBackground" />
+    </LinearLayout>
+</LinearLayout>
