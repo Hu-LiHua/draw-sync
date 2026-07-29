@@ -61,7 +61,8 @@ export class CanvasRenderer {
     // 选中高亮：在笔画周围绘制蓝色半透明边框
     if (selected) {
       this.ctx.save();
-      this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.6)';
+      this.ctx.strokeStyle = '#3399FF';
+      this.ctx.globalAlpha = 0.5;
       this.ctx.lineWidth = stroke.width + 4;
       this.ctx.globalCompositeOperation = 'source-over';
       this.ctx.beginPath();

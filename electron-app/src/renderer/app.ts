@@ -56,6 +56,7 @@ function handleMessage(msg: WsMessage) {
       androidVw = msg.vw || androidVw;
       androidVh = msg.vh || androidVh;
       drawingState.startStroke(msg.id, msg.color, msg.width, msg.pressure);
+      setToolMode('eraser-stroke');
       break;
     case 'stroke_points':
       drawingState.addPoints(msg.id, scalePoints(msg.points));
@@ -65,11 +66,13 @@ function handleMessage(msg: WsMessage) {
       break;
     case 'eraser_stroke':
       drawingState.removeStroke(msg.targetId);
+      setToolMode('eraser-stroke');
       break;
     case 'eraser_region_start': {
       const sx = renderer.getWidth() / androidVw;
       const sy = renderer.getHeight() / androidVh;
       regionStart = { x: msg.start.x * sx, y: msg.start.y * sy };
+      setToolMode('eraser-stroke');
       break;
     }
     case 'eraser_region_end':
@@ -107,9 +110,11 @@ function handleMessage(msg: WsMessage) {
     }
     case 'lasso_select':
       drawingState.selectStrokes(msg.strokeIds);
+      setToolMode('lasso');
       break;
     case 'selection_clear':
       drawingState.clearSelection();
+      setToolMode('eraser-stroke');
       break;
     case 'selection_move': {
       const sx = renderer.getWidth() / androidVw;

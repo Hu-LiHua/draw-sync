@@ -26,15 +26,13 @@ class DrawView @JvmOverloads constructor(
     var onLassoSelect: ((List<String>) -> Unit)? = null
     var onSelectionMove: ((Float, Float) -> Unit)? = null
     var onSelectionClear: (() -> Unit)? = null
+    var onTapToDismiss: (() -> Unit)? = null
 
     var toolMode: ToolMode = ToolMode.PEN
         set(value) {
             field = value
+            drawingState.resetInProgressOperations()
             resetLassoState()
-            if (value != ToolMode.LASSO) {
-                drawingState.clearSelection()
-                drawingState.resetInProgressOperations()
-            }
         }
     var currentColor: Int = Color.BLACK
     var currentWidth: Float = 3f
@@ -253,6 +251,11 @@ class DrawView @JvmOverloads constructor(
 
     private fun handleLassoTouch(event: MotionEvent, x: Float, y: Float) {
         if (lassoActionMode == null) {
+            // 已有完成的选择区域，再次触摸视为点击空白处取消
+            if (event.action == MotionEvent.ACTION_DOWN && lassoPoints.size >= 3 && drawingState.getSelectedStrokeIds().isNotEmpty()) {
+                onTapToDismiss?.invoke()
+                return
+            }
             handleLassoDraw(event, x, y)
         } else if (lassoActionMode == "move") {
             handleLassoDrag(event, x, y)
@@ -271,15 +274,13 @@ class DrawView @JvmOverloads constructor(
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
-                if (lassoPoints.size >= 2) {
-                    lassoPoints.add(lassoPoints.first()) // 闭合
-                }
                 if (lassoPoints.size < 3) {
                     Toast.makeText(context, "请画大一点的圈", Toast.LENGTH_SHORT).show()
                     resetLassoState()
                     invalidate()
                     return
                 }
+                lassoPoints.add(lassoPoints.first()) // 闭合
                 val ids = drawingState.getStrokesInLasso(lassoPoints.toList())
                 if (ids.isEmpty()) {
                     resetLassoState()
@@ -332,7 +333,6 @@ class DrawView @JvmOverloads constructor(
         val changed = drawingState.eraseLassoRegion(points)
         onLassoErase?.invoke(points)
         resetLassoState()
-        drawingState.clearSelection()
         invalidate()
         return changed
     }

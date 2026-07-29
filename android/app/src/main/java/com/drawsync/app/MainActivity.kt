@@ -346,6 +346,10 @@ class MainActivity : AppCompatActivity() {
         drawView.onSelectionClear = {
             webSocket?.sendSelectionClear()
         }
+        drawView.onTapToDismiss = {
+            drawView.cancelLasso()
+            hideLassoActionBar()
+        }
     }
 
     override fun onDestroy() {
@@ -406,11 +410,6 @@ class MainActivity : AppCompatActivity() {
             .addView(bar, params)
 
         lassoActionBar = bar
-
-        drawView.setOnClickListener {
-            drawView.cancelLasso()
-            hideLassoActionBar()
-        }
     }
 
     private fun hideLassoActionBar() {
