@@ -13,7 +13,7 @@ const renderer = new CanvasRenderer(canvas);
 
 function resizeCanvas() {
   renderer.resize();
-  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
 }
 window.addEventListener('resize', resizeCanvas);
 
@@ -100,8 +100,29 @@ function handleMessage(msg: WsMessage) {
       drawingState.deleteCurrentPage();
       updatePageIndicator();
       break;
+    case 'lasso_erase': {
+      const points = scalePoints(msg.points);
+      drawingState.eraseLassoRegion(points);
+      break;
+    }
+    case 'lasso_select':
+      drawingState.selectStrokes(msg.strokeIds);
+      break;
+    case 'selection_clear':
+      drawingState.clearSelection();
+      break;
+    case 'selection_move': {
+      const sx = renderer.getWidth() / androidVw;
+      const sy = renderer.getHeight() / androidVh;
+      drawingState.moveStrokes(
+        [...drawingState.getSelectedStrokeIds()],
+        msg.dx * sx,
+        msg.dy * sy
+      );
+      break;
+    }
   }
-  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
 }
 
 // --- 通过 IPC 回调接收主进程 WebSocket 消息和连接状态 ---
@@ -116,22 +137,27 @@ window.electronAPI.onDrawingMessage((msg: WsMessage) => {
 // --- 模式切换 ---
 document.getElementById('mode-eraser-stroke')!.addEventListener('click', () => setToolMode('eraser-stroke'));
 document.getElementById('mode-eraser-region')!.addEventListener('click', () => setToolMode('eraser-region'));
+document.getElementById('mode-lasso')!.addEventListener('click', () => setToolMode('lasso'));
 
 function setToolMode(mode: ToolMode) {
   toolMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  const id = mode === 'eraser-stroke' ? 'mode-eraser-stroke' : 'mode-eraser-region';
-  document.getElementById(id)!.classList.add('active');
+  const idMap: Record<ToolMode, string> = {
+    'eraser-stroke': 'mode-eraser-stroke',
+    'eraser-region': 'mode-eraser-region',
+    'lasso': 'mode-lasso',
+  };
+  document.getElementById(idMap[mode])!.classList.add('active');
 }
 
 // --- 撤销 / 清空 ---
 document.getElementById('btn-undo')!.addEventListener('click', () => {
   drawingState.undo();
-  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
 });
 document.getElementById('btn-clear')!.addEventListener('click', () => {
   drawingState.clear();
-  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
 });
 
 // --- 翻页 ---
@@ -148,7 +174,7 @@ document.getElementById('btn-page-prev')!.addEventListener('click', () => {
   const newIdx = drawingState.getCurrentPageIdx() - 1;
   if (drawingState.goToPage(newIdx)) {
     window.electronAPI.sendToClient({ type: 'page_go', pageIdx: newIdx });
-    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
     updatePageIndicator();
   }
 });
@@ -157,7 +183,7 @@ document.getElementById('btn-page-next')!.addEventListener('click', () => {
   const newIdx = drawingState.getCurrentPageIdx() + 1;
   if (drawingState.goToPage(newIdx)) {
     window.electronAPI.sendToClient({ type: 'page_go', pageIdx: newIdx });
-    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
     updatePageIndicator();
   }
 });
@@ -165,14 +191,14 @@ document.getElementById('btn-page-next')!.addEventListener('click', () => {
 document.getElementById('btn-page-new')!.addEventListener('click', () => {
   drawingState.newPage();
   window.electronAPI.sendToClient({ type: 'page_new' });
-  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+  renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
   updatePageIndicator();
 });
 
 document.getElementById('btn-page-delete')!.addEventListener('click', () => {
   if (drawingState.deleteCurrentPage()) {
     window.electronAPI.sendToClient({ type: 'page_delete' });
-    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke());
+    renderer.render(drawingState.getAllStrokes(), drawingState.getCurrentStroke(), drawingState.getSelectedStrokeIds());
     updatePageIndicator();
   }
 });

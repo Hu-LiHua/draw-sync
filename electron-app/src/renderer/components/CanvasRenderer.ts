@@ -21,7 +21,7 @@ export class CanvasRenderer {
   getWidth(): number { return this.canvas.getBoundingClientRect().width; }
   getHeight(): number { return this.canvas.getBoundingClientRect().height; }
 
-  render(strokes: StrokeData[], currentStroke: StrokeData | null): void {
+  render(strokes: StrokeData[], currentStroke: StrokeData | null, selectedStrokeIds?: Set<string>): void {
     const w = this.canvas.getBoundingClientRect().width;
     const h = this.canvas.getBoundingClientRect().height;
     this.ctx.clearRect(0, 0, w, h);
@@ -32,7 +32,7 @@ export class CanvasRenderer {
 
     // 绘制所有已完成笔画
     for (const stroke of strokes) {
-      this.drawStroke(stroke);
+      this.drawStroke(stroke, selectedStrokeIds?.has(stroke.id));
     }
 
     // 绘制当前正在画的笔触
@@ -41,7 +41,7 @@ export class CanvasRenderer {
     }
   }
 
-  private drawStroke(stroke: StrokeData): void {
+  private drawStroke(stroke: StrokeData, selected?: boolean): void {
     if (stroke.points.length < 1) return;
 
     this.ctx.beginPath();
@@ -57,5 +57,20 @@ export class CanvasRenderer {
     }
 
     this.ctx.stroke();
+
+    // 选中高亮：在笔画周围绘制蓝色半透明边框
+    if (selected) {
+      this.ctx.save();
+      this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.6)';
+      this.ctx.lineWidth = stroke.width + 4;
+      this.ctx.globalCompositeOperation = 'source-over';
+      this.ctx.beginPath();
+      this.ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        this.ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
   }
 }
