@@ -132,6 +132,7 @@ class DrawView @JvmOverloads constructor(
             for (i in 1 until lassoPoints.size) {
                 path.lineTo(lassoPoints[i].x, lassoPoints[i].y)
             }
+            path.close()
             canvas.drawPath(path, lassoPaint)
         }
     }
@@ -280,7 +281,6 @@ class DrawView @JvmOverloads constructor(
                     invalidate()
                     return
                 }
-                lassoPoints.add(lassoPoints.first()) // 闭合
                 val ids = drawingState.getStrokesInLasso(lassoPoints.toList())
                 if (ids.isEmpty()) {
                     resetLassoState()
